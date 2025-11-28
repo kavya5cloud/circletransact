@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  password    String
+  role        UserRole @default(VIEWER)
+  isActive    Boolean  @default(true)
+  canDownload Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  transactions Transaction[]
+  permissions   UserPermission[]
+  
+  @@map("users")
+}
+
+model Transaction {
+  id            String           @id @default(cuid())
+  date          DateTime
+  amount        Float
+  category      String
+  description   String?
+  paymentMethod PaymentMethod
+  partyName     String
+  invoiceImage  String?         // URL to uploaded image
+  requiresAuth  Boolean  @default(false)
+  authorizedBy  String?  // Admin who authorized this transaction
+  authorizedAt  DateTime?  // When authorization was given
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("transactions")
+}
+
+model Permission {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  module      String       // Module name (e.g., "dashboard", "transactions", "reports")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  userPermissions UserPermission[]
+  
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  // Relations
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+enum PaymentMethod {
+  CASH
+  ONLINE
+  OTHER
+}
